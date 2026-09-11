@@ -15,8 +15,9 @@ const FALLBACK_REPLY = "Just go Berseh Food Centre lah.";
  * history is the prior conversation as OpenAI-style {role, content} messages.
  */
 export async function runLoop(history, message, env) {
-  // If the Places key is missing, Uncle cannot search, so give a safe answer.
-  if (!env.GOOGLE_PLACES_API_KEY) {
+  // Without a model key Uncle cannot think, and without a Places key he cannot
+  // search, so give the safe answer instead of throwing a 500 at the user.
+  if (!env.OPENCODE_API_KEY || !env.GOOGLE_PLACES_API_KEY) {
     return FALLBACK_REPLY;
   }
 
@@ -50,6 +51,8 @@ export async function runLoop(history, message, env) {
         content: result,
       });
     }
+
+    round++;
   }
 
   return "Uncle tried too many times already. Ask something simpler.";
