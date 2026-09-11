@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  formatForecast,
+  CT_HUB_2,
   formatBusArrivals,
+  formatForecast,
+  formatPlaces,
   haversineMetres,
 } from "../src/tools.js";
 
@@ -54,4 +56,56 @@ test("haversineMetres measures CT Hub 2 to Lavender MRT at under 600 m", () => {
   const lavenderMrt = { latitude: 1.3073, longitude: 103.8631 };
   const distance = haversineMetres(ctHub2, lavenderMrt);
   assert.ok(distance > 400 && distance < 550, `got ${distance}`);
+});
+
+test("formatForecast survives an item with no forecasts array", () => {
+  const payload = { data: { items: [{ valid_period: { text: "12 pm to 2 pm" } }] } };
+
+  assert.deepEqual(formatForecast(payload, "Kallang"), {
+    area: "Kallang",
+    forecast: "Unknown",
+    valid_period: "12 pm to 2 pm",
+  });
+});
+
+test("formatPlaces surfaces open_now from currentOpeningHours", () => {
+  const places = [
+    {
+      displayName: { text: "Berseh Food Centre" },
+      rating: 4.3,
+      location: { latitude: 1.3079, longitude: 103.8597 },
+      currentOpeningHours: { openNow: false },
+    },
+    {
+      displayName: { text: "No Hours Published" },
+      rating: 4.1,
+      location: { latitude: 1.3115, longitude: 103.8615 },
+    },
+  ];
+
+  const [closed, unknown] = formatPlaces(places, CT_HUB_2);
+  assert.equal(closed.open_now, false);
+  // Missing hours is not the same as closed.
+  assert.equal(unknown.open_now, null);
+});
+
+test("formatPlaces keeps a place whose location Places omitted", () => {
+  const places = [{ displayName: { text: "No Location" }, rating: 4 }];
+
+  assert.deepEqual(formatPlaces(places, CT_HUB_2), [
+    { name: "No Location", rating: 4, distance_m: null, open_now: null },
+  ]);
+});
+
+test("formatPlaces measures distance from CT Hub 2, not another region", () => {
+  const berseh = [
+    {
+      displayName: { text: "Berseh Food Centre" },
+      rating: 4.3,
+      location: { latitude: 1.3079, longitude: 103.8597 },
+    },
+  ];
+
+  const [place] = formatPlaces(berseh, CT_HUB_2);
+  assert.ok(place.distance_m < 700, `got ${place.distance_m} m`);
 });

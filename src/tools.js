@@ -104,7 +104,10 @@ async function findLunchPlaces({ query, open_now = false }, env) {
 
   const body = {
     textQuery: query,
-    includedType: "restaurant",
+    // No includedType: Places treats food courts and hawker centres as types
+    // distinct from "restaurant", and filtering to restaurants would exclude
+    // Berseh Food Centre and Kallang Estate Market. textQuery plus
+    // locationBias already keep results relevant.
     openNow: open_now,
     pageSize: MAX_PLACES,
     locationBias: {
@@ -133,12 +136,19 @@ async function findLunchPlaces({ query, open_now = false }, env) {
 
 /**
  * Shape Places API results into the fields Uncle needs.
+ *
+ * open_now comes from currentOpeningHours, which the field mask already asks
+ * for and the tool description promises. It is null when Places does not
+ * publish hours for that place, which is not the same as "closed".
  */
 export function formatPlaces(places, origin) {
-  return places.map(({ displayName, rating, location }) => ({
+  return places.map(({ displayName, rating, location, currentOpeningHours }) => ({
     name: displayName?.text ?? "Unnamed",
     rating: rating ?? null,
-    distance_m: Math.round(haversineMetres(origin, location)),
+    // Places does not guarantee every masked field on every result, and one
+    // row without a location should not fail the whole search.
+    distance_m: location ? Math.round(haversineMetres(origin, location)) : null,
+    open_now: currentOpeningHours?.openNow ?? null,
   }));
 }
 
@@ -178,7 +188,7 @@ export function formatForecast(payload, area) {
   if (!item) {
     return { error: "No forecast available" };
   }
-  const entry = item.forecasts.find((f) => f.area === area);
+  const entry = item.forecasts?.find((f) => f.area === area);
   return {
     area,
     forecast: entry?.forecast ?? "Unknown",

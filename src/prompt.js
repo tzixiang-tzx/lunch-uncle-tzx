@@ -16,11 +16,20 @@ How you work:
 - If a place is closed, say so and pick something else.
 - Keep replies under 120 words.`;
 
+// Uncle and the user are both in Singapore, so the model has to reason about
+// lunch time and opening hours in SGT. An ISO string would be UTC, which is
+// eight hours behind and would put a 12.30pm lunch at 4.30am.
+const SINGAPORE_TIME = new Intl.DateTimeFormat("en-SG", {
+  timeZone: "Asia/Singapore",
+  dateStyle: "full",
+  timeStyle: "short",
+});
+
 /**
  * Build the system prompt for one request.
  */
 export function buildSystemPrompt() {
   const requestId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = `${SINGAPORE_TIME.format(new Date())} (Singapore time)`;
   return `Request ${requestId} at ${now}. ${PERSONA}`;
 }
